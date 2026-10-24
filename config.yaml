@@ -1,0 +1,125 @@
+# DataMask 脱敏规则配置
+# pattern: 正则表达式
+# replacement: 替换模板，支持 \1, \2 引用捕获组
+#
+# 匹配优先级（从上到下）：
+#   1. id_card     → 最具体：18位数字+可选X
+#   2. bank_card   → 长数字串：16-19位纯数字
+#   3. passport    → 字母+8位数字
+#   4. credit_code → 18位字母数字混合
+#   5. email       → 带@的邮箱
+#   6. phone       → 1[3-9]开头的11位手机号
+#   7. landline    → 0XX-XXXXXXX格式座机
+#   8. ip_address  → IPv4 地址
+#   9. unified_message → 统一消息替换占位符
+
+version: "2.0"
+rules:
+
+  # === 身份识别类 ===
+
+  - name: id_card
+    description: 中国大陆18位身份证号（保留前6后4，掩码中间8位）
+    pattern: \b(\d{6})\d{8}(\d{3}[\dXx])\b
+    replacement: \1********\2
+    enabled: true
+
+  - name: passport_cn
+    description: 中国护照号（字母+8位数字，如 E12345678）
+    pattern: \b([A-Za-z])\d{8}\b
+    replacement: \1********
+    enabled: true
+
+  - name: hk_identity_card
+    description: 香港身份证（字母开头+数字，如 A123456(7)）
+    pattern: \b([A-Za-z])(\d{6})\((\d)\)
+    replacement: \1******(\3)
+    enabled: true
+
+  # === 财务类 ===
+
+  - name: bank_card
+    description: 银行卡号（16-19位数字，保留前4后4，掩码中间）
+    pattern: \b(\d{4})\d{8,11}(\d{4})\b
+    replacement: \1********\2
+    enabled: true
+
+  - name: company_account
+    description: 企业对公账号（通常 10-15 位数字）
+    pattern: \b(\d{4})\d{4,7}(\d{4})\b
+    replacement: \1********\2
+    enabled: true
+
+  - name: contract_amount
+    description: 合同金额（"¥"/"￥"或"元"前后+数字，如 ¥1,234,567.89）
+    pattern: "[¥￥]\\s*[\\d,]+(?:\\.\\d{1,2})?|[\\d,]+(?:\\.\\d{1,2})?\\s*元"
+    replacement: ¥******.**元
+    enabled: true
+
+  # === 企业资质类 ===
+
+  - name: credit_code
+    description: 统一社会信用代码（18位字母数字，保留前2后2）
+    pattern: \b([0-9A-Za-z]{2})[0-9A-Za-z]{14}([0-9A-Za-z]{2})\b
+    replacement: \1**************\2
+    enabled: true
+
+  - name: tax_registration
+    description: 税务登记证号（16位数字+字母，匹配旧版未升级的税号）
+    pattern: \b([0-9A-Za-z]{4})[0-9A-Za-z]{8}([0-9A-Za-z]{4})\b
+    replacement: \1********\2
+    enabled: true
+
+  - name: business_license
+    description: 营业执照编号（15位，字母数字混合）
+    pattern: \b([0-9A-Za-z]{3})[0-9A-Za-z]{9}([0-9A-Za-z]{3})\b
+    replacement: \1*********\2
+    enabled: true
+
+  # === 联系方式类 ===
+
+  - name: phone
+    description: 中国大陆手机号（保留前3后4，如 138****5678）
+    pattern: \b(1[3-9]\d)\d{4}(\d{4})\b
+    replacement: \1****\2
+    enabled: true
+
+  - name: landline
+    description: 固定电话（含区号，保留区号和后4位）
+    pattern: \b(0\d{2,3})-(\d{4})\d{3,4}\b
+    replacement: \1-\2****
+    enabled: true
+
+  - name: email
+    description: 电子邮箱（保留首字母和域名，如 z***@example.com）
+    pattern: \b([a-zA-Z0-9])[a-zA-Z0-9._%+-]*@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b
+    replacement: \1***@\2
+    enabled: true
+
+  # === 联系人信息类 ===
+
+  - name: chinese_name
+    description: 中国人姓名（关键词后的2-4字姓名，如 法定代表人：**）
+    pattern: (联系人|法定代表人|法人代表|客户姓名|委托代理人|经办人|签约代表|授权代表|项目负责人|收款人)[：:\s]+[\u4e00-\u9fff]{2,4}
+    replacement: \1：**
+    enabled: true
+
+  - name: address
+    description: 详细地址（贪婪匹配至最后一个区/县级，保留行政区域，掩码街道门牌号）
+    pattern: (\S+(?:省|市|区|县|自治州))(\S{5,})
+    replacement: \1****
+    enabled: true
+
+  # === 网络信息类 ===
+
+  - name: ip_address
+    description: IPv4 地址
+    pattern: \b(\d{1,3})\.\d{1,3}\.\d{1,3}\.\d{1,3}\b
+    replacement: \1.***.***.***
+    enabled: false
+
+  - name: mac_address
+    description: MAC 物理地址
+    pattern: \b([0-9A-Fa-f]{2}):[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}\b
+    replacement: \1:**:**:**:**:** 
+    enabled: false

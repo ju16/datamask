@@ -1,0 +1,17 @@
+# 编译产物
+datamask
+datamask.exe
+dist/
+
+# 测试与临时文件
+*.test
+*.out
+.smoke/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
