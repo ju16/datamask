@@ -20,7 +20,7 @@
 | macOS | Intel | [datamask-macos-intel](https://github.com/ju16/datamask/releases/download/v1.1.0/datamask-macos-intel) | ~3.0 MB |
 | macOS | Apple Silicon | [datamask-macos-apple-silicon](https://github.com/ju16/datamask/releases/download/v1.1.0/datamask-macos-apple-silicon) | ~2.8 MB |
 
-不确定自己的 Mac 是哪种架构？点击屏幕左上角   → 关于本机：显示"Intel 芯片"选 Intel，显示"Apple M1/M2/M3/M4"选 Apple Silicon。
+不确定自己的 Mac 是哪种架构？点击屏幕左上角苹果菜单 → 关于本机：显示"Intel 芯片"选 Intel，显示"Apple M1/M2/M3/M4"选 Apple Silicon。
 
 Windows 用户下载 `.exe` 直接双击或在命令行调用；macOS 用户下载后先执行 `chmod +x datamask-macos-*` 再加权限运行。
 
