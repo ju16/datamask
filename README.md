@@ -64,12 +64,13 @@ datamask version
 
 命令行之外，也可以直接在 WorkBuddy 里用自然语言驱动 DataMask。
 
-**首次使用先做两步准备**（之后任何对话直接说"脱敏"即可，无需再提工具名）：
+**首次使用**：新开一个 WorkBuddy 对话，把下面这条消息整个发出去——下载二进制和安装技能一次完成：
 
-1. 下载二进制（见上方下载表格），记下所在位置
-2. 安装 DataMask 技能：把本仓库 `skills/datamask/` 目录复制到 `~/.workbuddy/skills/`（Windows 为 `C:\Users\<你的用户名>\.workbuddy\skills\`），重启 WorkBuddy
+```text
+装一下 datamask：从 https://github.com/ju16/datamask/releases 下载适合我这台电脑的版本放好，并把 https://github.com/ju16/datamask/tree/main/skills/datamask 安装为 skill。
+```
 
-装好后，把下面的提示词复制进对话，替换成自己的路径即可：
+之后在任何对话里直接说"脱敏"即可，无需再提工具名。以下提示词可直接复制使用：
 
 ### 脱敏
 
