@@ -22,7 +22,11 @@
 
 不确定自己的 Mac 是哪种架构？点击屏幕左上角苹果菜单 → 关于本机：显示"Intel 芯片"选 Intel，显示"Apple M1/M2/M3/M4"选 Apple Silicon。
 
-Windows 用户下载 `.exe` 直接双击或在命令行调用；macOS 用户下载后先执行 `chmod +x datamask-macos-*` 再加权限运行。
+下载后按平台处理一下即可在命令行使用（下文命令中的 `datamask` 均指处理后的可执行文件）：
+
+**Windows**：将下载的 `datamask-windows.exe` 重命名为 `datamask.exe`，把所在目录加入 PATH（设置 → 搜索"编辑系统环境变量" → 环境变量 → Path → 新建），之后新开终端即可直接使用 `datamask` 命令。嫌麻烦也可以不配置，调用时写全路径，如 `D:\Downloads\datamask-windows.exe mask input.docx`。
+
+**macOS**：先执行 `chmod +x datamask-macos-*` 赋予执行权限，可重命名为 `datamask` 后用全路径调用，如 `~/Downloads/datamask-macos-intel mask input.docx`；想直接使用 `datamask` 命令就 `sudo mv ~/Downloads/datamask-macos-intel /usr/local/bin/datamask`。
 
 全部版本见 [Releases 页面](https://github.com/ju16/datamask/releases)。
 
