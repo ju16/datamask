@@ -1,6 +1,6 @@
-# 编译产物
-datamask
-datamask.exe
+# 编译产物（仅限根目录，避免误伤 skills/datamask 等子目录）
+/datamask
+/datamask.exe
 dist/
 
 # 测试与临时文件
