@@ -60,6 +60,40 @@ datamask version
 
 不带 `-o` 时默认输出 `原名_masked.docx` / `原名_restored.docx`，日志默认 `同名.masklog.json`。
 
+## 在 WorkBuddy 中使用
+
+命令行之外，也可以直接在 WorkBuddy 里用自然语言驱动 DataMask——把下面的提示词复制进对话，替换成自己的路径即可：
+
+### 脱敏
+
+单个文件：
+
+```text
+帮我把 D:\Docs\合同.docx 脱敏，输出到 D:\Docs\合同_masked.docx，并生成恢复日志。
+```
+
+批量文件：
+
+```text
+把 D:\Contracts 文件夹里所有的 .docx 全部脱敏，脱敏结果和恢复日志统一放到 D:\Contracts\masked\ 目录。
+```
+
+### 恢复
+
+单个文件：
+
+```text
+按 D:\Docs\合同.masklog.json 恢复原文，输出到 D:\Docs\合同_restored.docx。
+```
+
+批量文件：
+
+```text
+把 D:\Contracts\masked\ 目录下所有 .masklog.json 批量恢复成原文 docx。
+```
+
+提示词不指定输出位置时，按命令行默认规则处理（`原名_masked.docx` / `同名.masklog.json`）。恢复日志务必妥善保管——没有它，脱敏后的文档无法还原。
+
 ## 跨平台编译
 
 ```bash
