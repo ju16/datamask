@@ -16,17 +16,17 @@
 
 | 平台 | 架构 | 文件 | 大小 |
 |---|---|---|---|
-| Windows | 64 位 | [datamask-windows.exe](https://github.com/ju16/datamask/releases/download/v1.1.0/datamask-windows.exe) | ~3.0 MB |
-| macOS | Intel | [datamask-macos-intel](https://github.com/ju16/datamask/releases/download/v1.1.0/datamask-macos-intel) | ~3.0 MB |
-| macOS | Apple Silicon | [datamask-macos-apple-silicon](https://github.com/ju16/datamask/releases/download/v1.1.0/datamask-macos-apple-silicon) | ~2.8 MB |
+| Windows | 64 位 | [datamask-win-x64.exe](https://github.com/ju16/datamask/releases/download/v1.1.0/datamask-win-x64.exe) | ~3.0 MB |
+| macOS | Intel | [datamask-macos-x86_64](https://github.com/ju16/datamask/releases/download/v1.1.0/datamask-macos-x86_64) | ~3.0 MB |
+| macOS | Apple Silicon | [datamask-macos-arm64](https://github.com/ju16/datamask/releases/download/v1.1.0/datamask-macos-arm64) | ~2.8 MB |
 
 不确定自己的 Mac 是哪种架构？点击屏幕左上角苹果菜单 → 关于本机：显示"Intel 芯片"选 Intel，显示"Apple M1/M2/M3/M4"选 Apple Silicon。
 
 下载后按平台处理一下即可在命令行使用（下文命令中的 `datamask` 均指处理后的可执行文件）：
 
-**Windows**：将下载的 `datamask-windows.exe` 重命名为 `datamask.exe`，把所在目录加入 PATH（设置 → 搜索"编辑系统环境变量" → 环境变量 → Path → 新建），之后新开终端即可直接使用 `datamask` 命令。嫌麻烦也可以不配置，调用时写全路径，如 `D:\Downloads\datamask-windows.exe mask input.docx`。
+**Windows**：将下载的 `datamask-win-x64.exe` 重命名为 `datamask.exe`，把所在目录加入 PATH（设置 → 搜索"编辑系统环境变量" → 环境变量 → Path → 新建），之后新开终端即可直接使用 `datamask` 命令。嫌麻烦也可以不配置，调用时写全路径，如 `D:\Downloads\datamask-win-x64.exe mask input.docx`。
 
-**macOS**：先执行 `chmod +x datamask-macos-*` 赋予执行权限，可重命名为 `datamask` 后用全路径调用，如 `~/Downloads/datamask-macos-intel mask input.docx`；想直接使用 `datamask` 命令就 `sudo mv ~/Downloads/datamask-macos-intel /usr/local/bin/datamask`。
+**macOS**：先执行 `chmod +x datamask-macos-*` 赋予执行权限，可重命名为 `datamask` 后用全路径调用，如 `~/Downloads/datamask-macos-arm64 mask input.docx`；想直接使用 `datamask` 命令就 `sudo mv ~/Downloads/datamask-macos-arm64 /usr/local/bin/datamask`。
 
 全部版本见 [Releases 页面](https://github.com/ju16/datamask/releases)。
 
@@ -108,11 +108,11 @@ datamask version
 
 ```bash
 # Windows 64 位
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o dist/datamask-windows.exe .
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o dist/datamask-win-x64.exe .
 
 # macOS（Intel + Apple Silicon）
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o dist/datamask-macos-intel .
-CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o dist/datamask-macos-apple-silicon .
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o dist/datamask-macos-x86_64 .
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o dist/datamask-macos-arm64 .
 ```
 
 `CGO_ENABLED=0` 产出纯静态二进制，丢到任何同架构机器上直接跑。一键构建见 `build.sh`。

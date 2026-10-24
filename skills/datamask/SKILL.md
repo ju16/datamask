@@ -13,7 +13,7 @@ DataMask 是一个 .docx 敏感信息脱敏 CLI（身份证、银行卡、护照
 按以下顺序查找 datamask 二进制，找到即用：
 
 1. 用户消息中给出的路径（优先）
-2. Windows：`datamask.exe` / `datamask-windows.exe`；macOS：`datamask` / `datamask-macos-intel` / `datamask-macos-apple-silicon`
+2. Windows：`datamask.exe` / `datamask-win-x64.exe`；macOS：`datamask` / `datamask-macos-x86_64` / `datamask-macos-arm64`
 3. 常见位置：当前项目 `dist/` 目录、用户 Downloads 目录、系统 PATH
 4. 都找不到时，询问用户二进制位置，并提示可从 https://github.com/ju16/datamask/releases 下载
 

@@ -12,10 +12,10 @@ build() {
 }
 
 # Windows 64 位
-build windows amd64 datamask-windows.exe
+build windows amd64 datamask-win-x64.exe
 
 # macOS（Intel + Apple Silicon）
-build darwin amd64 datamask-macos-intel
-build darwin arm64 datamask-macos-apple-silicon
+build darwin amd64 datamask-macos-x86_64
+build darwin arm64 datamask-macos-arm64
 
 echo "=== BUILDS OK ==="
