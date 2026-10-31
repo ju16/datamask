@@ -51,8 +51,9 @@ datamask log-show recovery.masklog.json
 # 查看当前生效的脱敏规则
 datamask rules
 
-# 使用自定义配置（默认用内置规则）
-datamask mask input.docx -c my-config.yaml
+# 导出内置规则为可编辑文件，改完再用
+datamask rules-init
+datamask mask input.docx -r datamask-rules.txt
 
 # 版本
 datamask version
@@ -117,9 +118,40 @@ CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o dist/datamask-macos-arm64 .
 
 `CGO_ENABLED=0` 产出纯静态二进制，丢到任何同架构机器上直接跑。一键构建见 `build.sh`。
 
-## 规则配置
+## 自定义规则
 
-`config.yaml` 定义全部规则，加载时自动完成转义换算（`\uXXXX` → RE2 写法、`\1` → `${1}`），书写时按常规正则习惯写即可：
+规则文件为纯文本格式，一行一条规则、字段一目了然，用任意编辑器就能改。`rules-init` 一键导出内置规则作为起点：
+
+```bash
+datamask rules-init                    # 导出内置规则到 datamask-rules.txt
+datamask rules -r datamask-rules.txt   # 检查修改后的规则是否合法
+datamask mask input.docx -r datamask-rules.txt
+```
+
+规则写法（每条规则：一行顶格写名称，下面缩进的行写字段）：
+
+```text
+手机号
+  说明: 中国手机号，保留前3后4
+  查找: \b(1[3-9]\d)\d{4}(\d{4})\b
+  替换: \1****\2
+
+银行卡号
+  查找: \b(\d{4})\d{8,11}(\d{4})\b
+  替换: \1********\2
+
+内网IP
+  查找: \b(\d{1,3})\.\d{1,3}\.\d{1,3}\.\d{1,3}\b
+  开关: 关
+```
+
+- `查找`：正则表达式，与常见写法一致（`\d` 数字、`a|b` 二选一、`\u4e00` 中文也支持），必填
+- `替换`：`\1`、`\2` 表示保留对应括号捕获的内容，`*` 为掩码字符；省略时整段匹配替换为 `***`
+- `说明`：备注，给人看的，不影响执行
+- `开关`：`开` / `关`，省略默认开；临时停用某条规则只改这一个词
+- 以 `#` 开头的行为注释；规则按文件顺序生效，越具体的规则放越前面（如身份证在银行卡之前）
+
+也兼容 YAML 配置格式，`-r` 与 `-c` 等价，加载时按内容自动识别：
 
 ```yaml
 version: "2.0"
@@ -130,8 +162,6 @@ rules:
     replacement: \1********\2
     enabled: true
 ```
-
-匹配优先级从上到下：先具体规则（身份证），后宽泛规则（银行卡）。`enabled: false` 可单独禁用某条规则。
 
 ## 恢复日志格式
 
@@ -169,8 +199,9 @@ go test ./...
 
 ```
 datamask/
-├── main.go        # CLI 入口（mask/restore/log-show/rules）
+├── main.go        # CLI 入口（mask/restore/log-show/rules/rules-init）
 ├── config.go      # 配置加载 + 规则引擎
+├── rulestxt.go    # 纯文本规则文件解析/导出
 ├── docx.go        # docx 读写（zip + OOXML 扫描）
 ├── recovery.go    # JSON 恢复日志
 ├── config.yaml    # 内置脱敏规则（go:embed 嵌入二进制）

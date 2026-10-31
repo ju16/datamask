@@ -370,6 +370,210 @@ func TestRestorePositionShift(t *testing.T) {
 	}
 }
 
+// ---------- 纯文本规则文件：解析 ----------
+
+func TestParseRulesTxtForms(t *testing.T) {
+	input := `# 注释行
+
+手机号规则
+  说明: 中国手机号，保留前3后4
+  查找: \b(1[3-9]\d)\d{4}(\d{4})\b
+  替换: \1****\2
+
+全掩码规则
+  查找: \b\d{6}\b
+
+带开关的规则
+  查找: \b\d{4}\b
+  替换: ****
+  开关: 关
+
+或运算正则
+  查找: (省|市|区|县)(\S{5,})
+  替换: \1****
+`
+	rules, err := parseRulesTxt([]byte(input))
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if len(rules) != 4 {
+		t.Fatalf("expected 4 rules, got %d", len(rules))
+	}
+	// 完整写法
+	if rules[0].Name != "手机号规则" || rules[0].Description != "中国手机号，保留前3后4" ||
+		rules[0].Pattern != `\b(1[3-9]\d)\d{4}(\d{4})\b` || rules[0].Replacement != `\1****\2` || *rules[0].Enabled != true {
+		t.Errorf("rule0 wrong: %+v", rules[0])
+	}
+	// 只写查找：替换默认 ***
+	if rules[1].Replacement != "***" || rules[1].Description != "" {
+		t.Errorf("rule1 wrong: %+v", rules[1])
+	}
+	// 开关: 关
+	if rules[2].Replacement != "****" || *rules[2].Enabled != false {
+		t.Errorf("rule2 wrong: %+v", rules[2])
+	}
+	// 正则内含 | 或运算不受影响
+	if rules[3].Pattern != `(省|市|区|县)(\S{5,})` {
+		t.Errorf("rule3 wrong: %+v", rules[3])
+	}
+}
+
+func TestParseRulesTxtInvalid(t *testing.T) {
+	cases := []struct{ name, input string }{
+		{"只有名称没有查找", "某规则\n  说明: 缺查找\n"},
+		{"缺少冒号", "某规则\n  查找 \\d+\n"},
+		{"未知字段", "某规则\n  查找: \\d+\n  颜色: 红\n"},
+		{"缩进行无规则名", "  查找: \\d+\n"},
+		{"开关值不认识", "某规则\n  查找: \\d+\n  开关: 也许\n"},
+		{"全注释", "# 只有注释\n\n"},
+	}
+	for _, c := range cases {
+		if _, err := parseRulesTxt([]byte(c.input)); err == nil {
+			t.Errorf("%s: expected error, got nil", c.name)
+		}
+	}
+	// 中文/英文冒号都支持
+	if _, err := parseRulesTxt([]byte("规则\n  查找: \\d+\n  替换: x\n")); err != nil {
+		t.Errorf("halfwidth colon should work: %v", err)
+	}
+}
+
+// ---------- 纯文本规则文件：端到端脱敏 + 恢复 ----------
+
+func TestTxtRulesEndToEnd(t *testing.T) {
+	txt := `# 自定义规则：只脱敏手机号、身份证和邮箱
+手机号
+  说明: 中国手机号，保留前3后4
+  查找: \b(1[3-9]\d)\d{4}(\d{4})\b
+  替换: \1****\2
+
+身份证号
+  说明: 保留前6后4
+  查找: \b(\d{6})\d{8}(\d{3}[\dXx])\b
+  替换: \1********\2
+
+邮箱
+  说明: 整段掩码（省略替换，测默认 ***）
+  查找: [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+
+
+被禁用的规则
+  查找: \b\d{3}\b
+  替换: ###
+  开关: 关
+`
+	dir := t.TempDir()
+	rulesPath := filepath.Join(dir, "my-rules.txt")
+	if err := os.WriteFile(rulesPath, []byte(txt), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	paragraphs := []string{
+		"电话 13812345678，邮箱 alice@test.com。",
+		"身份证 110101199001011234 结尾。",
+		"编号 123 不应被禁用规则处理。",
+	}
+	path := writeTempDocx(t, buildDocx(t, paragraphs))
+	result, err := MaskFile(path, "", rulesPath)
+	if err != nil {
+		t.Fatalf("mask with txt rules failed: %v", err)
+	}
+
+	maskedDoc, err := OpenDocx(result.MaskedFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g0, _ := maskedDoc.ParagraphText("word/document.xml", 0)
+	if !strings.Contains(g0, "138****5678") || strings.Contains(g0, "13812345678") {
+		t.Errorf("phone not masked: %q", g0)
+	}
+	if strings.Contains(g0, "alice@test.com") || !strings.Contains(g0, "邮箱 ***。") {
+		t.Errorf("email not masked with default ***: %q", g0)
+	}
+	g1, _ := maskedDoc.ParagraphText("word/document.xml", 1)
+	if !strings.Contains(g1, "110101********1234") {
+		t.Errorf("id_card not masked: %q", g1)
+	}
+	g2, _ := maskedDoc.ParagraphText("word/document.xml", 2)
+	if strings.Contains(g2, "###") {
+		t.Errorf("disabled rule should not apply: %q", g2)
+	}
+
+	// 恢复闭环
+	log := NewRecoveryLog(result.SourceFile, result.MaskedFile, result.RulesApplied, result.Replacements)
+	logPath := filepath.Join(dir, "e2e.masklog.json")
+	if _, err := log.Save(logPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := RestoreFile(logPath, ""); err != nil {
+		t.Fatalf("restore failed: %v", err)
+	}
+	restoredDoc, _ := OpenDocx(strings.TrimSuffix(result.MaskedFile, ".docx") + "_restored.docx")
+	got, _ := restoredDoc.ParagraphText("word/document.xml", 0)
+	if want := paragraphs[0]; got != want {
+		t.Errorf("restore mismatch:\n want %q\n  got %q", want, got)
+	}
+}
+
+// ---------- rules-init 导出闭环：内置 YAML → 文本 → 再解析 ----------
+
+func TestRulesTxtRoundtrip(t *testing.T) {
+	_, raws, err := parseYAMLRules(embeddedConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := renderRulesTxt(raws)
+	parsed, err := parseRulesTxt(rendered)
+	if err != nil {
+		t.Fatalf("re-parse rendered txt failed: %v", err)
+	}
+	if len(parsed) != len(raws) {
+		t.Fatalf("rule count mismatch: yaml=%d txt=%d", len(raws), len(parsed))
+	}
+	for i := range raws {
+		a, b := raws[i], parsed[i]
+		if a.Name != b.Name || a.Pattern != b.Pattern || a.Replacement != b.Replacement || a.Description != b.Description {
+			t.Errorf("rule %d mismatch:\n yaml: %+v\n  txt: %+v", i, a, b)
+		}
+		var ea, eb bool
+		if a.Enabled != nil {
+			ea = *a.Enabled
+		}
+		if b.Enabled != nil {
+			eb = *b.Enabled
+		}
+		if ea != eb {
+			t.Errorf("rule %d enabled mismatch: yaml=%v txt=%v", i, ea, eb)
+		}
+	}
+	// 渲染结果能直接走 LoadConfig
+	dir := t.TempDir()
+	p := filepath.Join(dir, "roundtrip-rules.txt")
+	if err := os.WriteFile(p, rendered, 0644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadConfig(p)
+	if err != nil {
+		t.Fatalf("LoadConfig on rendered txt failed: %v", err)
+	}
+	if len(cfg.AllRules()) != len(raws) {
+		t.Errorf("config rule count mismatch: %d vs %d", len(cfg.AllRules()), len(raws))
+	}
+}
+
+// ---------- 格式识别 ----------
+
+func TestIsYAMLConfig(t *testing.T) {
+	if !isYAMLConfig([]byte("version: \"2.0\"\nrules:\n  - name: a\n    pattern: \\d\n")) {
+		t.Error("yaml with version: not detected")
+	}
+	if !isYAMLConfig([]byte("# 注释\nrules:\n- name: a\n")) {
+		t.Error("yaml with rules: not detected")
+	}
+	if isYAMLConfig([]byte("# 注释\n手机号\n  查找: \\b\\d{11}\\b\n  替换: ****\n")) {
+		t.Error("txt rules misdetected as yaml")
+	}
+}
+
 // ---------- 日志序列化兼容 ----------
 
 func TestLogBackwardCompat(t *testing.T) {

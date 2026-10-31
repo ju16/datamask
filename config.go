@@ -116,6 +116,15 @@ func convertReplacement(s string) string {
 	return b.String()
 }
 
+// rawRule 配置解析阶段的原始规则（Pattern/Replacement 均为用户书写形式，未转换）
+type rawRule struct {
+	Name        string
+	Description string
+	Pattern     string
+	Replacement string
+	Enabled     *bool
+}
+
 // Config 配置管理器
 type Config struct {
 	path  string
@@ -123,32 +132,37 @@ type Config struct {
 	rules []*MaskRule
 }
 
-// LoadConfig 从 YAML 文件加载配置
+// LoadConfig 加载配置文件，自动识别格式：YAML（version:/rules: 开头）或纯文本规则文件（一行一条，| 分隔）
 func LoadConfig(configPath string) (*Config, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("配置文件不存在: %s", configPath)
 	}
 
-	var raw struct {
-		Version string `yaml:"version"`
-		Rules   []struct {
-			Name        string `yaml:"name"`
-			Description string `yaml:"description"`
-			Pattern     string `yaml:"pattern"`
-			Replacement string `yaml:"replacement"`
-			Enabled     *bool  `yaml:"enabled"`
-		} `yaml:"rules"`
+	var ver string
+	var raws []rawRule
+	if isYAMLConfig(data) {
+		ver, raws, err = parseYAMLRules(data)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		raws, err = parseRulesTxt(data)
+		if err != nil {
+			return nil, err
+		}
+		ver = "text"
 	}
-	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("配置文件解析失败: %v", err)
-	}
+	return buildConfig(ver, raws, configPath)
+}
 
-	c := &Config{path: configPath, ver: raw.Version}
+// buildConfig 校验并编译规则，组装 Config
+func buildConfig(ver string, raws []rawRule, configPath string) (*Config, error) {
+	c := &Config{path: configPath, ver: ver}
 	if c.ver == "" {
 		c.ver = "1.0"
 	}
-	for _, rd := range raw.Rules {
+	for _, rd := range raws {
 		if rd.Name == "" || rd.Pattern == "" {
 			return nil, fmt.Errorf("规则缺少 name 或 pattern 字段")
 		}
@@ -174,6 +188,37 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("配置文件中没有规则")
 	}
 	return c, nil
+}
+
+// parseYAMLRules 解析 YAML 配置为原始规则
+func parseYAMLRules(data []byte) (string, []rawRule, error) {
+	var raw struct {
+		Version string `yaml:"version"`
+		Rules   []rawRuleYAML
+	}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return "", nil, fmt.Errorf("配置文件解析失败: %v", err)
+	}
+	raws := make([]rawRule, 0, len(raw.Rules))
+	for _, rd := range raw.Rules {
+		raws = append(raws, rawRule{
+			Name:        rd.Name,
+			Description: rd.Description,
+			Pattern:     rd.Pattern,
+			Replacement: rd.Replacement,
+			Enabled:     rd.Enabled,
+		})
+	}
+	return raw.Version, raws, nil
+}
+
+// rawRuleYAML YAML 规则条目
+type rawRuleYAML struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+	Pattern     string `yaml:"pattern"`
+	Replacement string `yaml:"replacement"`
+	Enabled     *bool  `yaml:"enabled"`
 }
 
 // Rules 返回启用的规则（按配置顺序）

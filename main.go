@@ -11,9 +11,10 @@ import (
 //go:embed config.yaml
 var embeddedConfig []byte
 
-var version = "1.1.0"
+var version = "1.2.0"
 
 const defaultConfigName = "config.yaml"
+const defaultRulesTxtName = "datamask-rules.txt"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -31,6 +32,8 @@ func main() {
 		os.Exit(cmdLogShow(os.Args[2:]))
 	case "rules":
 		os.Exit(cmdRules(os.Args[2:]))
+	case "rules-init":
+		os.Exit(cmdRulesInit(os.Args[2:]))
 	case "version", "--version", "-v":
 		fmt.Printf("DataMask v%s\n", version)
 		os.Exit(0)
@@ -48,22 +51,26 @@ func printUsage() {
 	fmt.Print(`DataMask - 数据脱敏工具 v` + version + `
 
 用法:
-  datamask mask <input.docx> [-o output] [-l log] [-c config]   对文档执行脱敏
+  datamask mask <input.docx> [-o output] [-l log] [-r rules]   对文档执行脱敏
   datamask restore <log.json> [-o output]                      根据日志恢复文档
-  datamask log-show <log.json>                                  查看脱敏日志摘要
-  datamask rules [-c config]                                    查看当前脱敏规则
-  datamask version                                              查看版本
+  datamask log-show <log.json>                                 查看脱敏日志摘要
+  datamask rules [-r rules]                                    查看当前脱敏规则
+  datamask rules-init [输出文件]                                导出内置规则为可编辑的规则文件
+  datamask version                                             查看版本
 
 选项:
   -o, --output   输出文件路径
   -l, --log      恢复日志文件路径
-  -c, --config   配置文件路径（默认使用内置规则）
+  -r, --rules    规则文件路径，一行一条规则、纯文本好编辑（也兼容 YAML 配置）
+  -c, --config   同 -r（兼容旧写法）
 
 示例:
   datamask mask contract.docx
   datamask mask contract.docx -o out.docx -l out.masklog.json
+  datamask rules-init                          导出内置规则到 datamask-rules.txt
+  datamask mask contract.docx -r my-rules.txt  用自定义规则脱敏
   datamask restore out.masklog.json
-  datamask rules
+  datamask rules -r my-rules.txt               检查自定义规则
 `)
 }
 
@@ -94,6 +101,7 @@ func parseFlags(args []string) (positional []string, opts map[string]string, err
 		"-o": "output", "--output": "output",
 		"-l": "log", "--log": "log",
 		"-c": "config", "--config": "config",
+		"-r": "config", "--rules": "config",
 	}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
@@ -242,8 +250,14 @@ func cmdRules(args []string) int {
 		return 1
 	}
 	line := strings.Repeat("=", 50)
+	verLabel := cfg.Version()
+	if verLabel == "text" {
+		verLabel = "自定义规则文件"
+	} else {
+		verLabel = "版本 " + verLabel
+	}
 	fmt.Println(line)
-	fmt.Printf("DataMask 脱敏规则 (版本: %s)\n", cfg.Version())
+	fmt.Printf("DataMask 脱敏规则 (%s)\n", verLabel)
 	fmt.Println(line)
 	for _, rule := range cfg.AllRules() {
 		status := "启用"
@@ -256,5 +270,39 @@ func cmdRules(args []string) int {
 		fmt.Printf("  替换: %s\n", rule.RawReplacement)
 	}
 	fmt.Println(line)
+	return 0
+}
+
+// cmdRulesInit 导出内置规则为可编辑的纯文本规则文件
+func cmdRulesInit(args []string) int {
+	positional, opts, err := parseFlags(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[错误] %v\n", err)
+		return 1
+	}
+	out := defaultRulesTxtName
+	if len(positional) >= 1 {
+		out = positional[0]
+	}
+	if opts["output"] != "" {
+		out = opts["output"]
+	}
+	if _, err := os.Stat(out); err == nil {
+		fmt.Fprintf(os.Stderr, "[错误] 文件已存在: %s（如需覆盖请先删除或指定其他路径）\n", out)
+		return 1
+	}
+	_, raws, err := parseYAMLRules(embeddedConfig)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[错误] 解析内置规则失败: %v\n", err)
+		return 1
+	}
+	if err := os.WriteFile(out, renderRulesTxt(raws), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "[错误] 写入规则文件失败: %v\n", err)
+		return 1
+	}
+	fmt.Printf("[完成] 已导出 %d 条内置规则到: %s\n", len(raws), out)
+	fmt.Println("[提示] 用任意编辑器打开修改（一行一条规则，文件头有格式说明），然后执行：")
+	fmt.Printf("       datamask rules -r %s       ← 先检查规则是否合法\n", out)
+	fmt.Printf("       datamask mask 文档.docx -r %s\n", out)
 	return 0
 }
