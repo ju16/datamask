@@ -2,7 +2,7 @@
 set -e
 cd "$(dirname "$0")"
 mkdir -p dist
-VER="1.1.0"
+VER="1.2.0"
 LDF="-s -w -X main.version=$VER"
 
 build() {
